@@ -4,21 +4,33 @@ import asyncio
 import json
 import os
 from collections.abc import Mapping, Sequence
-from typing import Any
+from typing import Any, NamedTuple
 from urllib import error, request
 
 from kosong.chat_provider import ChatProviderError, TokenUsage
 from kosong.message import Message, TextPart
 
 from kimi_cli.constant import USER_AGENT
-from kimi_cli.soul.compaction import CompactionResult, SimpleCompaction
+from kimi_cli.soul.compaction import CompactionResult
 from kimi_cli.soul.message import system
 
 DEFAULT_MORPH_API_URL = "https://api.morphllm.com/v1"
 DEFAULT_TIMEOUT_SECONDS = 30.0
-DEFAULT_COMPRESSION_RATIO = 0.5
+DEFAULT_COMPRESSION_RATIO = 0.3
 MORPH_COMPACTOR_MODEL = "morph-compactor"
 COMPACTION_PREAMBLE = "Previous context has been compacted. Here is the compaction output:"
+_VALID_CHAT_COMPLETION_SUFFIXES = ("/compact", "/responses", "/chat/completions")
+
+
+class MorphTokenUsage(TokenUsage):
+    compression_ratio: float | None = None
+    processing_time_ms: int | None = None
+
+
+class PreparedMorphInput(NamedTuple):
+    original_messages: list[Message]
+    api_messages: list[dict[str, str]]
+    to_preserve: Sequence[Message]
 
 
 class MorphCompaction:
@@ -31,23 +43,23 @@ class MorphCompaction:
     ) -> None:
         self._compression_ratio = compression_ratio
         self._timeout_seconds = timeout_seconds
-        self._base = SimpleCompaction(max_preserved_messages=max_preserved_messages)
+        self._max_preserved_messages = max_preserved_messages
 
     async def compact(
         self, messages: Sequence[Message], llm: Any, *, custom_instruction: str = ""
     ) -> CompactionResult:
-        compact_message, to_preserve = self._base.prepare(
-            messages,
-            custom_instruction=custom_instruction,
-        )
-        if compact_message is None:
-            return CompactionResult(messages=to_preserve, usage=None)
+        prepared = self._prepare_messages(messages)
+        if prepared is None:
+            return CompactionResult(messages=messages, usage=None)
+        if not prepared.api_messages:
+            return CompactionResult(messages=prepared.to_preserve, usage=None)
 
         payload = {
             "model": MORPH_COMPACTOR_MODEL,
-            "input": compact_message.extract_text("\n"),
+            "messages": prepared.api_messages,
             "query": self._build_query(custom_instruction),
             "compression_ratio": self._compression_ratio,
+            "preserve_recent": 0,
             "compress_system_messages": False,
             "include_line_ranges": True,
             "include_markers": True,
@@ -55,10 +67,56 @@ class MorphCompaction:
         response = await asyncio.to_thread(self._post_compact, payload, llm)
         output = self._extract_output(response)
         usage = self._extract_usage(response)
+        compacted_messages = self._build_compacted_messages(
+            prepared.original_messages,
+            response,
+            fallback_output=output,
+        )
 
-        content = [system(COMPACTION_PREAMBLE), TextPart(text=output)]
-        compacted_messages = [Message(role="user", content=content), *to_preserve]
-        return CompactionResult(messages=compacted_messages, usage=usage)
+        return CompactionResult(messages=[*compacted_messages, *prepared.to_preserve], usage=usage)
+
+    def _prepare_messages(self, messages: Sequence[Message]) -> PreparedMorphInput | None:
+        if not messages or self._max_preserved_messages <= 0:
+            return None
+
+        history = list(messages)
+        preserve_start_index = len(history)
+        n_preserved = 0
+        for index in range(len(history) - 1, -1, -1):
+            if history[index].role in {"user", "assistant"}:
+                n_preserved += 1
+                if n_preserved == self._max_preserved_messages:
+                    preserve_start_index = index
+                    break
+
+        if n_preserved < self._max_preserved_messages:
+            return None
+
+        to_compact = history[:preserve_start_index]
+        to_preserve = history[preserve_start_index:]
+        if not to_compact:
+            return None
+
+        original_messages: list[Message] = []
+        api_messages: list[dict[str, str]] = []
+        for message in to_compact:
+            text = self._extract_text_content(message)
+            if text is None:
+                continue
+            original_messages.append(message)
+            api_messages.append({"role": message.role, "content": text})
+
+        return PreparedMorphInput(
+            original_messages=original_messages,
+            api_messages=api_messages,
+            to_preserve=to_preserve,
+        )
+
+    def _extract_text_content(self, message: Message) -> str | None:
+        parts = [part.text for part in message.content if isinstance(part, TextPart) and part.text]
+        if not parts:
+            return None
+        return "\n".join(parts)
 
     def _build_query(self, custom_instruction: str) -> str:
         query = (
@@ -151,9 +209,41 @@ class MorphCompaction:
 
     def _normalize_base_url(self, base_url: str) -> str:
         normalized = base_url.strip().rstrip("/")
-        if normalized.endswith("/compact"):
-            return normalized[: -len("/compact")]
+        for suffix in _VALID_CHAT_COMPLETION_SUFFIXES:
+            if normalized.endswith(suffix):
+                return normalized[: -len(suffix)]
         return normalized
+
+    def _build_compacted_messages(
+        self,
+        original_messages: Sequence[Message],
+        response: dict[str, Any],
+        *,
+        fallback_output: str,
+    ) -> list[Message]:
+        response_messages = response.get("messages")
+        if isinstance(response_messages, list) and len(response_messages) == len(original_messages):
+            compacted_messages: list[Message] = []
+            for original, compacted in zip(original_messages, response_messages, strict=True):
+                if not isinstance(compacted, dict):
+                    return [self._build_fallback_message(fallback_output)]
+
+                content = compacted.get("content")
+                if not isinstance(content, str) or not content:
+                    return [self._build_fallback_message(fallback_output)]
+
+                role = compacted.get("role")
+                if not isinstance(role, str) or not role:
+                    role = original.role
+
+                compacted_messages.append(Message(role=role, content=[TextPart(text=content)]))
+            return compacted_messages
+
+        return [self._build_fallback_message(fallback_output)]
+
+    def _build_fallback_message(self, output: str) -> Message:
+        content = [system(COMPACTION_PREAMBLE), TextPart(text=output)]
+        return Message(role="user", content=content)
 
     def _extract_output(self, response: dict[str, Any]) -> str:
         output = response.get("output")
@@ -173,7 +263,7 @@ class MorphCompaction:
 
         raise ChatProviderError("Morph compact response did not contain output text.")
 
-    def _extract_usage(self, response: dict[str, Any]) -> TokenUsage | None:
+    def _extract_usage(self, response: dict[str, Any]) -> MorphTokenUsage | None:
         usage = response.get("usage")
         if not isinstance(usage, dict):
             return None
@@ -183,4 +273,17 @@ class MorphCompaction:
         if not isinstance(input_tokens, int) or not isinstance(output_tokens, int):
             return None
 
-        return TokenUsage(input_other=input_tokens, output=output_tokens)
+        compression_ratio = usage.get("compression_ratio")
+        if not isinstance(compression_ratio, (int, float)):
+            compression_ratio = None
+
+        processing_time_ms = usage.get("processing_time_ms")
+        if not isinstance(processing_time_ms, int):
+            processing_time_ms = None
+
+        return MorphTokenUsage(
+            input_other=input_tokens,
+            output=output_tokens,
+            compression_ratio=float(compression_ratio) if compression_ratio is not None else None,
+            processing_time_ms=processing_time_ms,
+        )
