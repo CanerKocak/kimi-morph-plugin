@@ -22,6 +22,16 @@ From a local checkout:
 kimi plugin install /Users/caner/kimi-morph-plugin && bash ~/.kimi/plugins/morph-plugin/activate.sh
 ```
 
+## Uninstall
+
+Clean deactivation plus removal:
+
+```bash
+bash ~/.kimi/plugins/morph-plugin/deactivate.sh && kimi plugin remove morph-plugin
+```
+
+If you installed from a local checkout and want to test against a temporary config file, both helpers support `KIMI_CONFIG_PATH`.
+
 ## Configure Morph
 
 Set these environment variables before running Kimi:
@@ -38,4 +48,5 @@ export MORPH_API_URL="https://api.morphllm.com/v1"
 - This plugin uses Morph's native `/v1/compact` endpoint.
 - The plugin reads Morph credentials directly from environment variables.
 - The plugin does not modify Kimi's main chat model. It only replaces context compaction.
-- `activate.py` supports `KIMI_CONFIG_PATH` for testing or non-default setups.
+- `activate.py` adds `compaction_plugin = "morph-plugin"` to Kimi config.
+- `deactivate.py` removes that exact config entry and leaves other Kimi settings untouched.
