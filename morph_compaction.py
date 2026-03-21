@@ -10,6 +10,7 @@ from urllib import error, request
 from kosong.chat_provider import ChatProviderError, TokenUsage
 from kosong.message import Message, TextPart
 
+from kimi_cli.constant import USER_AGENT
 from kimi_cli.soul.compaction import CompactionResult, SimpleCompaction
 from kimi_cli.soul.message import system
 
@@ -82,7 +83,7 @@ class MorphCompaction:
             or os.getenv("MORPH_API_URL")
             or DEFAULT_MORPH_API_URL
         )
-        url = f"{base_url.rstrip('/')}/compact"
+        url = f"{self._normalize_base_url(base_url)}/compact"
         req = request.Request(
             url,
             data=json.dumps(payload).encode("utf-8"),
@@ -128,9 +129,12 @@ class MorphCompaction:
         return None
 
     def _build_headers(self, provider: Any, api_key: str) -> dict[str, str]:
+        normalized_api_key = self._normalize_api_key(api_key)
         headers = {
-            "Authorization": f"Bearer {api_key}",
+            "Authorization": f"Bearer {normalized_api_key}",
             "Content-Type": "application/json",
+            "Accept": "application/json",
+            "User-Agent": USER_AGENT,
         }
         custom_headers = getattr(provider, "custom_headers", None)
         if isinstance(custom_headers, Mapping):
@@ -138,6 +142,18 @@ class MorphCompaction:
                 if isinstance(key, str) and isinstance(value, str):
                     headers[key] = value
         return headers
+
+    def _normalize_api_key(self, api_key: str) -> str:
+        normalized = api_key.strip()
+        if normalized.lower().startswith("bearer "):
+            return normalized[7:].strip()
+        return normalized
+
+    def _normalize_base_url(self, base_url: str) -> str:
+        normalized = base_url.strip().rstrip("/")
+        if normalized.endswith("/compact"):
+            return normalized[: -len("/compact")]
+        return normalized
 
     def _extract_output(self, response: dict[str, Any]) -> str:
         output = response.get("output")
