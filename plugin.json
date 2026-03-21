@@ -1,0 +1,8 @@
+{
+  "name": "morph-plugin",
+  "version": "1.0.0",
+  "description": "Morph-backed context compaction for Kimi Code",
+  "compaction": {
+    "entrypoint": "morph_compaction.MorphCompaction"
+  }
+}
