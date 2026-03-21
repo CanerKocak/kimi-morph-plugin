@@ -10,25 +10,16 @@ The plugin keeps Kimi's existing preserve-tail behavior and only swaps the compa
 
 ## Install
 
+One-line install plus activation:
+
+```bash
+kimi plugin install git@github.com:CanerKocak/kimi-morph-plugin.git && bash ~/.kimi/plugins/morph-plugin/activate.sh
+```
+
 From a local checkout:
 
 ```bash
-kimi plugin install /Users/caner/kimi-morph-plugin
-```
-
-If this repo is published on GitHub:
-
-```bash
-kimi plugin install git@github.com:CanerKocak/kimi-morph-plugin.git
-```
-
-## Configure Kimi
-
-Add this to `~/.kimi/config.toml`:
-
-```toml
-[loop_control]
-compaction_plugin = "morph-plugin"
+kimi plugin install /Users/caner/kimi-morph-plugin && bash ~/.kimi/plugins/morph-plugin/activate.sh
 ```
 
 ## Configure Morph
@@ -47,3 +38,4 @@ export MORPH_API_URL="https://api.morphllm.com/v1"
 - This plugin uses Morph's native `/v1/compact` endpoint.
 - The plugin reads Morph credentials directly from environment variables.
 - The plugin does not modify Kimi's main chat model. It only replaces context compaction.
+- `activate.py` supports `KIMI_CONFIG_PATH` for testing or non-default setups.
