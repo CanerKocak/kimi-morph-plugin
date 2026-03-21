@@ -1,16 +1,8 @@
 # Kimi Morph Plugin
 
-Morph-backed context compaction for Kimi Code.
-
-## What It Does
-
-This plugin replaces Kimi's default compaction step with Morph's native `POST /v1/compact` endpoint using the `morph-compactor` model.
-
-The plugin keeps Kimi's existing preserve-tail behavior and only swaps the compaction implementation.
+Replaces Kimi's default context compaction with Morph's `POST /v1/compact` endpoint using the `morph-compactor` model.
 
 ## Install
-
-One-line install plus activation:
 
 ```bash
 kimi plugin install git@github.com:CanerKocak/kimi-morph-plugin.git && bash ~/.kimi/plugins/morph-plugin/activate.sh
@@ -19,36 +11,30 @@ kimi plugin install git@github.com:CanerKocak/kimi-morph-plugin.git && bash ~/.k
 From a local checkout:
 
 ```bash
-kimi plugin install /Users/caner/kimi-morph-plugin && bash ~/.kimi/plugins/morph-plugin/activate.sh
+kimi plugin install /path/to/kimi-morph-plugin && bash ~/.kimi/plugins/morph-plugin/activate.sh
 ```
 
 ## Uninstall
-
-Clean deactivation plus removal:
 
 ```bash
 bash ~/.kimi/plugins/morph-plugin/deactivate.sh && kimi plugin remove morph-plugin
 ```
 
-If you installed from a local checkout and want to test against a temporary config file, both helpers support `KIMI_CONFIG_PATH`.
+Both `activate.sh` and `deactivate.sh` support `KIMI_CONFIG_PATH` for custom config locations.
 
-## Configure Morph
+## Configuration
 
-Preferred setup: configure Morph as a normal Kimi provider in `~/.kimi/config.toml`. The plugin will reuse the runtime provider API key, base URL, and custom headers automatically.
+Preferred: configure Morph as a normal Kimi provider in `~/.kimi/config.toml`. The plugin will reuse the provider's API key, base URL, and custom headers automatically.
 
-Optional fallback: if you do not want to store Morph credentials in Kimi config, set these environment variables before running Kimi:
+Fallback: set environment variables instead:
 
 ```bash
 export MORPH_API_KEY="your-key"
-export MORPH_API_URL="https://api.morphllm.com/v1"
+export MORPH_API_URL="https://api.morphllm.com/v1"  # optional, this is the default
 ```
 
-`MORPH_API_URL` is optional. If omitted, the plugin uses `https://api.morphllm.com/v1`.
+## How it works
 
-## Notes
-
-- This plugin uses Morph's native `/v1/compact` endpoint.
-- The plugin prefers Kimi's configured Morph provider and only falls back to environment variables.
-- The plugin does not modify Kimi's main chat model. It only replaces context compaction.
-- `activate.py` adds `compaction_plugin = "morph-plugin"` to Kimi config.
-- `deactivate.py` removes that exact config entry and leaves other Kimi settings untouched.
+- `activate.py` sets `compaction_plugin = "morph-plugin"` in Kimi config.
+- `deactivate.py` removes that entry, leaving other settings untouched.
+- The plugin prefers Kimi's configured Morph provider and falls back to environment variables.
