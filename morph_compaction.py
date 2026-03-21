@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from typing import Any
 from urllib import error, request
 
@@ -51,7 +51,7 @@ class MorphCompaction:
             "include_line_ranges": True,
             "include_markers": True,
         }
-        response = await asyncio.to_thread(self._post_compact, payload)
+        response = await asyncio.to_thread(self._post_compact, payload, llm)
         output = self._extract_output(response)
         usage = self._extract_usage(response)
 
@@ -69,20 +69,24 @@ class MorphCompaction:
             query += f" Prioritize this user instruction: {custom_instruction}"
         return query
 
-    def _post_compact(self, payload: dict[str, Any]) -> dict[str, Any]:
-        api_key = os.getenv("MORPH_API_KEY")
+    def _post_compact(self, payload: dict[str, Any], llm: Any) -> dict[str, Any]:
+        provider = getattr(llm, "provider_config", None)
+        api_key = self._resolve_api_key(provider) or os.getenv("MORPH_API_KEY")
         if not api_key:
-            raise ChatProviderError("MORPH_API_KEY is required for Morph compaction.")
+            raise ChatProviderError(
+                "Morph compaction requires a configured API key in Kimi or MORPH_API_KEY."
+            )
 
-        base_url = os.getenv("MORPH_API_URL", DEFAULT_MORPH_API_URL).rstrip("/")
-        url = f"{base_url}/compact"
+        base_url = (
+            self._resolve_base_url(provider)
+            or os.getenv("MORPH_API_URL")
+            or DEFAULT_MORPH_API_URL
+        )
+        url = f"{base_url.rstrip('/')}/compact"
         req = request.Request(
             url,
             data=json.dumps(payload).encode("utf-8"),
-            headers={
-                "Authorization": f"Bearer {api_key}",
-                "Content-Type": "application/json",
-            },
+            headers=self._build_headers(provider, api_key),
             method="POST",
         )
 
@@ -105,6 +109,35 @@ class MorphCompaction:
         if not isinstance(data, dict):
             raise ChatProviderError("Morph compact response had unexpected shape.")
         return data
+
+    def _resolve_api_key(self, provider: Any) -> str | None:
+        api_key = getattr(provider, "api_key", None)
+        if api_key is None:
+            return None
+        if hasattr(api_key, "get_secret_value"):
+            value = api_key.get_secret_value()
+            return value or None
+        if isinstance(api_key, str) and api_key:
+            return api_key
+        return None
+
+    def _resolve_base_url(self, provider: Any) -> str | None:
+        base_url = getattr(provider, "base_url", None)
+        if isinstance(base_url, str) and base_url:
+            return base_url
+        return None
+
+    def _build_headers(self, provider: Any, api_key: str) -> dict[str, str]:
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        }
+        custom_headers = getattr(provider, "custom_headers", None)
+        if isinstance(custom_headers, Mapping):
+            for key, value in custom_headers.items():
+                if isinstance(key, str) and isinstance(value, str):
+                    headers[key] = value
+        return headers
 
     def _extract_output(self, response: dict[str, Any]) -> str:
         output = response.get("output")

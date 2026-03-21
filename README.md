@@ -34,7 +34,9 @@ If you installed from a local checkout and want to test against a temporary conf
 
 ## Configure Morph
 
-Set these environment variables before running Kimi:
+Preferred setup: configure Morph as a normal Kimi provider in `~/.kimi/config.toml`. The plugin will reuse the runtime provider API key, base URL, and custom headers automatically.
+
+Optional fallback: if you do not want to store Morph credentials in Kimi config, set these environment variables before running Kimi:
 
 ```bash
 export MORPH_API_KEY="your-key"
@@ -46,7 +48,7 @@ export MORPH_API_URL="https://api.morphllm.com/v1"
 ## Notes
 
 - This plugin uses Morph's native `/v1/compact` endpoint.
-- The plugin reads Morph credentials directly from environment variables.
+- The plugin prefers Kimi's configured Morph provider and only falls back to environment variables.
 - The plugin does not modify Kimi's main chat model. It only replaces context compaction.
 - `activate.py` adds `compaction_plugin = "morph-plugin"` to Kimi config.
 - `deactivate.py` removes that exact config entry and leaves other Kimi settings untouched.
