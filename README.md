@@ -4,7 +4,7 @@ Replaces Kimi's default context compaction with Morph's `POST /v1/compact` endpo
 
 ## Demo
 
-https://github.com/user-attachments/assets/bf911a79-a740-4072-b8a0-220aaddc4904
+https://github.com/user-attachments/assets/cd9ab927-74ff-46a9-bfab-69e3cde75d03
 
 ## Install
 
