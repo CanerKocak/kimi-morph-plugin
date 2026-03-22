@@ -9,7 +9,7 @@ PLUGIN_NAME = "morph-plugin"
 DEFAULT_CONFIG_PATH = Path.home() / ".kimi" / "config.toml"
 DEFAULT_PROVIDER_NAME = "morph"
 DEFAULT_MODEL_ALIAS = "morph-compaction"
-DEFAULT_MODEL_NAME = "morph-v3-large"
+DEFAULT_MODEL_NAME = "morph-compactor"
 DEFAULT_BASE_URL = "https://api.morphllm.com/v1"
 DEFAULT_MAX_CONTEXT_SIZE = 128000
 

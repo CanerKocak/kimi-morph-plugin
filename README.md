@@ -42,7 +42,7 @@ api_key = "YOUR_MORPH_API_KEY"
 
 [models.morph-compaction]
 provider = "morph"
-model = "morph-v3-large"
+model = "morph-compactor"
 max_context_size = 128000
 
 [loop_control]

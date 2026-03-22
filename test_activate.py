@@ -44,7 +44,7 @@ def test_configure_morph_compaction_adds_provider_model_and_loop_control() -> No
     assert 'api_key = "test-key"' in updated
     assert '[models.morph-compaction]' in updated
     assert 'provider = "morph"' in updated
-    assert 'model = "morph-v3-large"' in updated
+    assert 'model = "morph-compactor"' in updated
     assert 'max_context_size = 128000' in updated
     assert '[loop_control]' in updated
     assert 'compaction_model = "morph-compaction"' in updated
@@ -69,7 +69,7 @@ def test_configure_morph_compaction_updates_existing_sections_without_duplicates
     assert updated.count('[models.morph-compaction]') == 1
     assert updated.count('[loop_control]') == 1
     assert 'api_key = "new-key"' in updated
-    assert 'model = "morph-v3-large"' in updated
+    assert 'model = "morph-compactor"' in updated
     assert 'compaction_model = "morph-compaction"' in updated
     assert 'compaction_plugin = "morph-plugin"' in updated
     assert 'old-key' not in updated
