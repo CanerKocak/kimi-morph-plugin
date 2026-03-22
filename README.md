@@ -105,5 +105,5 @@ So if you want compaction to hit Morph reliably, make sure compaction is routed 
 ## How it works
 
 - `activate.py` can either just set `compaction_plugin = "morph-plugin"` or bootstrap a Morph provider/model and set `compaction_model` at the same time.
-- `deactivate.py` removes that entry, leaving other settings untouched.
+- `deactivate.py` can either just remove `compaction_plugin` or, with `--cleanup-morph`, also remove the bootstrap-created provider/model entries and `compaction_model` routing.
 - `morph_compaction.py` reads the Morph API key, base URL, and custom headers from Kimi's configured provider, then posts compaction requests to `/v1/compact`.
