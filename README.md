@@ -1,14 +1,11 @@
 # Kimi Morph Plugin
 
+
 Replaces Kimi's default context compaction with [Morph Compact](https://www.morphllm.com/products/compact) -- verbatim context compaction at 33,000 tok/s.
 
 ## Why Morph?
 
-Kimi's default compaction summarizes your context, which means file paths, error codes, and decisions can get paraphrased away. Morph Compact **deletes filler and keeps every surviving line byte-for-byte identical to the original** -- no rewriting, no paraphrasing.
-
-- **Fast**: 100K tokens compressed in under 3 seconds
-- **50-70% token reduction** on typical agent sessions
-- **Query-aware**: pass the next objective and Morph keeps what's relevant, drops the rest
+<img width="1110" height="407" alt="image" src="https://github.com/user-attachments/assets/07e8c0a9-2664-4d6a-b39c-6ad6b7c198e7" />
 
 ## Demo
 
