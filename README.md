@@ -2,6 +2,10 @@
 
 Replaces Kimi's default context compaction with Morph's `POST /v1/compact` endpoint using the `morph-compactor` model.
 
+## Demo
+
+- [Watch the MP4 demo](./demo/morph-plugin-demo.mp4)
+
 ## Install
 
 ```bash
