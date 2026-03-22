@@ -125,18 +125,9 @@ def _configure_morph_compaction(text: str, args: argparse.Namespace) -> str:
     )
 
 
-def _set_compaction_plugin(text: str) -> str:
-    return _upsert_table(text, "loop_control", {"compaction_plugin": PLUGIN_NAME})
-
-
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Enable the Morph compaction plugin and optionally bootstrap Morph provider config."
-    )
-    parser.add_argument(
-        "--setup-morph",
-        action="store_true",
-        help="Also configure a Morph-backed provider/model for compaction.",
+        description="Enable the Morph compaction plugin and bootstrap Morph provider config."
     )
     parser.add_argument("--api-key", help="Morph API key to write into Kimi config.")
     parser.add_argument(
@@ -178,18 +169,12 @@ def main() -> None:
     config_path.parent.mkdir(parents=True, exist_ok=True)
     existing = config_path.read_text(encoding="utf-8") if config_path.exists() else ""
 
-    if args.setup_morph:
-        updated = _configure_morph_compaction(existing, args)
-        config_path.write_text(updated, encoding="utf-8")
-        print(
-            f"Configured Morph provider '{args.provider_name}', model '{args.model_alias}', "
-            f"and compaction_plugin = \"{PLUGIN_NAME}\" in {config_path}"
-        )
-        return
-
-    updated = _set_compaction_plugin(existing)
+    updated = _configure_morph_compaction(existing, args)
     config_path.write_text(updated, encoding="utf-8")
-    print(f"Enabled compaction_plugin = \"{PLUGIN_NAME}\" in {config_path}")
+    print(
+        f"Configured Morph provider '{args.provider_name}', model '{args.model_alias}', "
+        f"and compaction_plugin = \"{PLUGIN_NAME}\" in {config_path}"
+    )
 
 
 if __name__ == "__main__":

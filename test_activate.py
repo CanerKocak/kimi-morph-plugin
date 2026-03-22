@@ -11,18 +11,7 @@ from activate import (
     DEFAULT_PROVIDER_NAME,
     _configure_morph_compaction,
     _resolve_api_key,
-    _set_compaction_plugin,
 )
-
-
-def test_set_compaction_plugin_preserves_existing_config() -> None:
-    existing = '[providers.foo]\nbase_url = "https://example.com"\n\n[loop_control]\nreserved_context_size = 50000\n'
-
-    updated = _set_compaction_plugin(existing)
-
-    assert 'compaction_plugin = "morph-plugin"' in updated
-    assert 'reserved_context_size = 50000' in updated
-    assert '[providers.foo]' in updated
 
 
 def test_configure_morph_compaction_adds_provider_model_and_loop_control() -> None:
