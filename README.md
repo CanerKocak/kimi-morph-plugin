@@ -62,4 +62,4 @@ You should see `morph-plugin` listed, and your `~/.kimi/config.toml` should cont
 
 ## How it works
 
-Kimi's compaction system is pluggable. This plugin registers itself as the compaction handler and routes compaction requests through Morph's API instead of the default provider. The plugin reads credentials from Kimi's configured provider -- no standalone env vars needed at runtime.
+Kimi's compaction system is pluggable. This plugin registers itself as the compaction handler and routes compaction requests through Morph's API instead of the default provider.
