@@ -13,6 +13,8 @@ https://github.com/user-attachments/assets/cd9ab927-74ff-46a9-bfab-69e3cde75d03
 
 ## Install
 
+Get your API key from the [Morph dashboard](https://www.morphllm.com/dashboard/api-keys), then:
+
 ```bash
 export MORPH_API_KEY="YOUR_MORPH_API_KEY"
 kimi plugin install git@github.com:CanerKocak/kimi-morph-plugin.git
@@ -45,10 +47,8 @@ compaction_model = "morph-compaction"
 ## Uninstall
 
 ```bash
-bash ~/.kimi/plugins/morph-plugin/deactivate.sh --cleanup-morph && kimi plugin remove morph-plugin
+bash ~/.kimi/plugins/morph-plugin/deactivate.sh && kimi plugin remove morph-plugin
 ```
-
-Omit `--cleanup-morph` to keep your Morph provider/model entries while disabling the plugin.
 
 Both scripts support `KIMI_CONFIG_PATH` for custom config locations.
 

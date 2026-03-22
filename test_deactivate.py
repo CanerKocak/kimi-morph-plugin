@@ -24,31 +24,7 @@ def _bootstrap_args() -> SimpleNamespace:
     )
 
 
-def _cleanup_args(*, cleanup_morph: bool) -> SimpleNamespace:
-    return SimpleNamespace(
-        cleanup_morph=cleanup_morph,
-        provider_name=DEFAULT_PROVIDER_NAME,
-        model_alias=DEFAULT_MODEL_ALIAS,
-    )
-
-
-def test_plain_deactivate_only_removes_plugin_switch() -> None:
-    existing = _configure_morph_compaction(
-        "[loop_control]\nreserved_context_size = 50000\n",
-        _bootstrap_args(),
-    )
-
-    updated, removed = _deactivate_config(existing, _cleanup_args(cleanup_morph=False))
-
-    assert 'compaction_plugin = "morph-plugin"' not in updated
-    assert 'compaction_model = "morph-compaction"' in updated
-    assert '[models.morph-compaction]' in updated
-    assert '[providers.morph]' in updated
-    assert 'reserved_context_size = 50000' in updated
-    assert removed == ['compaction_plugin = "morph-plugin"']
-
-
-def test_cleanup_morph_removes_bootstrap_sections_and_preserves_unrelated_config() -> None:
+def test_deactivate_removes_all_morph_config() -> None:
     existing = _configure_morph_compaction(
         (
             "[providers.other]\nbase_url = \"https://example.com\"\n\n"
@@ -58,7 +34,7 @@ def test_cleanup_morph_removes_bootstrap_sections_and_preserves_unrelated_config
         _bootstrap_args(),
     )
 
-    updated, removed = _deactivate_config(existing, _cleanup_args(cleanup_morph=True))
+    updated, removed = _deactivate_config(existing)
 
     assert 'compaction_plugin = "morph-plugin"' not in updated
     assert 'compaction_model = "morph-compaction"' not in updated
@@ -75,32 +51,7 @@ def test_cleanup_morph_removes_bootstrap_sections_and_preserves_unrelated_config
     ]
 
 
-def test_cleanup_morph_respects_custom_aliases() -> None:
-    bootstrap_args = SimpleNamespace(
-        api_key="test-key",
-        api_key_env=None,
-        provider_name="custom-morph",
-        model_alias="custom-compaction",
-        model_name=DEFAULT_MODEL_NAME,
-        base_url=DEFAULT_BASE_URL,
-        max_context_size=128000,
-    )
-    cleanup_args = SimpleNamespace(
-        cleanup_morph=True,
-        provider_name="custom-morph",
-        model_alias="custom-compaction",
-    )
-
-    existing = _configure_morph_compaction("", bootstrap_args)
-    updated, removed = _deactivate_config(existing, cleanup_args)
-
-    assert '[providers.custom-morph]' not in updated
-    assert '[models.custom-compaction]' not in updated
-    assert 'compaction_model = "custom-compaction"' not in updated
-    assert removed[-2:] == ['[models.custom-compaction]', '[providers.custom-morph]']
-
-
-def test_cleanup_morph_keeps_provider_when_other_models_still_reference_it() -> None:
+def test_deactivate_also_removes_provider_when_other_models_reference_it() -> None:
     existing = _configure_morph_compaction(
         (
             '[models.morph-chat]\n'
@@ -113,12 +64,16 @@ def test_cleanup_morph_keeps_provider_when_other_models_still_reference_it() -> 
         _bootstrap_args(),
     )
 
-    updated, removed = _deactivate_config(existing, _cleanup_args(cleanup_morph=True))
+    updated, removed = _deactivate_config(existing)
 
-    assert 'compaction_plugin = "morph-plugin"' not in updated
-    assert 'compaction_model = "morph-compaction"' not in updated
+    assert '[providers.morph]' not in updated
     assert '[models.morph-compaction]' not in updated
-    assert '[providers.morph]' in updated
     assert '[models.morph-chat]' in updated
-    assert 'provider = "morph"' in updated
-    assert '[providers.morph]' not in removed
+    assert '[providers.morph]' in removed
+
+
+def test_deactivate_noop_on_clean_config() -> None:
+    updated, removed = _deactivate_config("[loop_control]\nreserved_context_size = 50000\n")
+
+    assert removed == []
+    assert 'reserved_context_size = 50000' in updated
