@@ -62,10 +62,12 @@ bash ~/.kimi/plugins/morph-plugin/activate.sh --setup-morph
 ## Uninstall
 
 ```bash
-bash ~/.kimi/plugins/morph-plugin/deactivate.sh && kimi plugin remove morph-plugin
+bash ~/.kimi/plugins/morph-plugin/deactivate.sh --cleanup-morph && kimi plugin remove morph-plugin
 ```
 
 Both `activate.sh` and `deactivate.sh` support `KIMI_CONFIG_PATH` for custom config locations.
+
+If you only want to disable the plugin but keep your Morph provider/model entries, omit `--cleanup-morph`.
 
 ## Configuration
 
@@ -79,6 +81,15 @@ Bootstrap activation accepts:
 - `--api-key <key>`
 - `--api-key-env <ENV_VAR_NAME>`
 - `MORPH_API_KEY` from the environment
+
+`deactivate.sh --cleanup-morph` removes:
+
+- `compaction_plugin = "morph-plugin"`
+- `compaction_model = "morph-compaction"` by default
+- `[models.morph-compaction]` by default
+- `[providers.morph]` by default
+
+You can override the bootstrap aliases with `--model-alias` and `--provider-name` during cleanup if you used custom names.
 
 Configure Morph as a normal Kimi provider in `~/.kimi/config.toml` if you prefer to manage provider/model entries yourself. The plugin reuses the provider's API key, base URL, and custom headers directly from Kimi.
 
