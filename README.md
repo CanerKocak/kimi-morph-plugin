@@ -1,6 +1,6 @@
 # Kimi Morph Plugin
 
-Replaces Kimi's default context compaction with [Morph Compact](https://morphllm.com) -- verbatim context compaction at 33,000 tok/s.
+Replaces Kimi's default context compaction with [Morph Compact](https://www.morphllm.com/products/compact) -- verbatim context compaction at 33,000 tok/s.
 
 ## Why Morph?
 
