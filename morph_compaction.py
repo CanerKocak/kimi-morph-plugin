@@ -81,7 +81,7 @@ class MorphCompaction:
         preserve_start_index = len(history)
         n_preserved = 0
         for index in range(len(history) - 1, -1, -1):
-            if history[index].role in {"user", "assistant"}:
+            if self._counts_toward_preserved_tail(history[index]):
                 n_preserved += 1
                 if n_preserved == self._max_preserved_messages:
                     preserve_start_index = index
@@ -109,6 +109,13 @@ class MorphCompaction:
             api_messages=api_messages,
             to_preserve=to_preserve,
         )
+
+    def _counts_toward_preserved_tail(self, message: Message) -> bool:
+        if message.role == "user":
+            return True
+        if message.role == "assistant" and not message.tool_calls:
+            return True
+        return False
 
     def _extract_text_content(self, message: Message) -> str | None:
         parts = [part.text for part in message.content if isinstance(part, TextPart) and part.text]
@@ -216,6 +223,9 @@ class MorphCompaction:
         *,
         fallback_output: str,
     ) -> list[Message]:
+        if self._requires_fallback_compaction(original_messages):
+            return [self._build_fallback_message(fallback_output)]
+
         response_messages = response.get("messages")
         if isinstance(response_messages, list) and len(response_messages) == len(original_messages):
             compacted_messages: list[Message] = []
@@ -235,6 +245,14 @@ class MorphCompaction:
             return compacted_messages
 
         return [self._build_fallback_message(fallback_output)]
+
+    def _requires_fallback_compaction(self, original_messages: Sequence[Message]) -> bool:
+        for message in original_messages:
+            if message.role == "tool" or message.tool_calls or message.tool_call_id:
+                return True
+            if any(not isinstance(part, TextPart) for part in message.content):
+                return True
+        return False
 
     def _build_fallback_message(self, output: str) -> Message:
         content = [system(COMPACTION_PREAMBLE), TextPart(text=output)]

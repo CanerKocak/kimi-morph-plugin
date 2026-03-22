@@ -5,7 +5,7 @@ from urllib import request
 
 import pytest
 from kosong.chat_provider import ChatProviderError
-from kosong.message import Message, TextPart
+from kosong.message import Message, TextPart, ToolCall
 from kimi_cli.constant import USER_AGENT
 
 from morph_compaction import MorphCompaction, MorphTokenUsage
@@ -150,6 +150,104 @@ async def test_compact_falls_back_to_single_message_when_response_mapping_mismat
     assert result.messages[0].role == "user"
     assert COMPACT_TEXT in result.messages[0].extract_text("\n")
     assert "fallback output" in result.messages[0].extract_text("\n")
+
+
+@pytest.mark.asyncio
+async def test_compact_falls_back_to_single_message_for_tool_call_history(monkeypatch) -> None:
+    def fake_post_compact(payload: dict[str, object], llm: object) -> dict[str, object]:
+        return {
+            "output": "safe summary",
+            "messages": [
+                {"role": "assistant", "content": "tool call compacted"},
+                {"role": "tool", "content": "tool result compacted"},
+            ],
+            "usage": {"input_tokens": 12, "output_tokens": 5},
+        }
+
+    compaction = MorphCompaction(max_preserved_messages=2)
+    monkeypatch.setattr(compaction, "_post_compact", fake_post_compact)
+
+    messages = [
+        Message(
+            role="assistant",
+            content=[TextPart(text="Calling ReadFile")],
+            tool_calls=[
+                ToolCall(
+                    id="call_1",
+                    function=ToolCall.FunctionBody(name="ReadFile", arguments='{"path":"README.md"}'),
+                )
+            ],
+        ),
+        Message(role="tool", content=[TextPart(text="README contents")], tool_call_id="call_1"),
+        Message(role="user", content=[TextPart(text="keep user")]),
+        Message(role="assistant", content=[TextPart(text="keep assistant")]),
+    ]
+
+    result = await compaction.compact(messages, SimpleNamespace(provider_config=None))
+
+    assert len(result.messages) == 3
+    assert result.messages[0].role == "user"
+    assert COMPACT_TEXT in result.messages[0].extract_text("\n")
+    assert "safe summary" in result.messages[0].extract_text("\n")
+    assert result.messages[1].extract_text("\n") == "keep user"
+    assert result.messages[2].extract_text("\n") == "keep assistant"
+
+
+@pytest.mark.asyncio
+async def test_compact_preserves_the_full_latest_tool_turn(monkeypatch) -> None:
+    captured: dict[str, object] = {}
+
+    def fake_post_compact(payload: dict[str, object], llm: object) -> dict[str, object]:
+        captured["payload"] = payload
+        return {
+            "messages": [
+                {"role": "user", "content": "old user compacted"},
+                {"role": "assistant", "content": "old assistant compacted"},
+            ],
+            "usage": {"input_tokens": 22, "output_tokens": 9},
+        }
+
+    compaction = MorphCompaction(max_preserved_messages=2)
+    monkeypatch.setattr(compaction, "_post_compact", fake_post_compact)
+
+    tool_call = ToolCall(
+        id="call_tail",
+        function=ToolCall.FunctionBody(
+            name="Grep",
+            arguments='{"pattern":"ChatProviderError","path":"morph_compaction.py"}',
+        ),
+    )
+    messages = [
+        Message(role="user", content=[TextPart(text="old user")]),
+        Message(role="assistant", content=[TextPart(text="old assistant")]),
+        Message(role="user", content=[TextPart(text="latest question")]),
+        Message(role="assistant", content=[], tool_calls=[tool_call]),
+        Message(role="tool", content=[TextPart(text="grep results")], tool_call_id="call_tail"),
+        Message(role="assistant", content=[TextPart(text="latest answer")]),
+    ]
+
+    result = await compaction.compact(messages, SimpleNamespace(provider_config=None))
+
+    payload = captured["payload"]
+    assert isinstance(payload, dict)
+    assert payload["messages"] == [
+        {"role": "user", "content": "old user"},
+        {"role": "assistant", "content": "old assistant"},
+    ]
+
+    assert len(result.messages) == 6
+    assert result.messages[0].extract_text("\n") == "old user compacted"
+    assert result.messages[1].extract_text("\n") == "old assistant compacted"
+    assert result.messages[2].role == "user"
+    assert result.messages[2].extract_text("\n") == "latest question"
+    assert result.messages[3].role == "assistant"
+    assert result.messages[3].tool_calls is not None
+    assert result.messages[3].tool_calls[0].id == "call_tail"
+    assert result.messages[4].role == "tool"
+    assert result.messages[4].tool_call_id == "call_tail"
+    assert result.messages[4].extract_text("\n") == "grep results"
+    assert result.messages[5].role == "assistant"
+    assert result.messages[5].extract_text("\n") == "latest answer"
 
 
 def test_normalize_base_url_strips_openai_and_native_suffixes() -> None:

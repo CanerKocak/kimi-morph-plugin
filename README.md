@@ -28,17 +28,12 @@ Both `activate.sh` and `deactivate.sh` support `KIMI_CONFIG_PATH` for custom con
 
 ## Configuration
 
-Preferred: configure Morph as a normal Kimi provider in `~/.kimi/config.toml`. The plugin will reuse the provider's API key, base URL, and custom headers automatically.
+Configure Morph as a normal Kimi provider in `~/.kimi/config.toml`. The plugin reuses the provider's API key, base URL, and custom headers directly from Kimi.
 
-Fallback: set environment variables instead:
-
-```bash
-export MORPH_API_KEY="your-key"
-export MORPH_API_URL="https://api.morphllm.com/v1"  # optional, this is the default
-```
+The plugin now requires those credentials to be configured in Kimi; it does not fall back to standalone `MORPH_API_KEY` or `MORPH_API_URL` environment variables.
 
 ## How it works
 
 - `activate.py` sets `compaction_plugin = "morph-plugin"` in Kimi config.
 - `deactivate.py` removes that entry, leaving other settings untouched.
-- The plugin prefers Kimi's configured Morph provider and falls back to environment variables.
+- `morph_compaction.py` reads the Morph API key, base URL, and custom headers from Kimi's configured provider, then posts compaction requests to `/v1/compact`.
