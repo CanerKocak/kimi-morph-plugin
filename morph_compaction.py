@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-import os
 from collections.abc import Mapping, Sequence
 from typing import Any, NamedTuple
 from urllib import error, request
@@ -14,7 +13,6 @@ from kimi_cli.constant import USER_AGENT
 from kimi_cli.soul.compaction import CompactionResult
 from kimi_cli.soul.message import system
 
-DEFAULT_MORPH_API_URL = "https://api.morphllm.com/v1"
 DEFAULT_TIMEOUT_SECONDS = 30.0
 DEFAULT_COMPRESSION_RATIO = 0.3
 MORPH_COMPACTOR_MODEL = "morph-compactor"
@@ -130,17 +128,14 @@ class MorphCompaction:
 
     def _post_compact(self, payload: dict[str, Any], llm: Any) -> dict[str, Any]:
         provider = getattr(llm, "provider_config", None)
-        api_key = self._resolve_api_key(provider) or os.getenv("MORPH_API_KEY")
+        api_key = self._resolve_api_key(provider)
         if not api_key:
-            raise ChatProviderError(
-                "Morph compaction requires a configured API key in Kimi or MORPH_API_KEY."
-            )
+            raise ChatProviderError("Morph compaction requires a configured API key in Kimi.")
 
-        base_url = (
-            self._resolve_base_url(provider)
-            or os.getenv("MORPH_API_URL")
-            or DEFAULT_MORPH_API_URL
-        )
+        base_url = self._resolve_base_url(provider)
+        if not base_url:
+            raise ChatProviderError("Morph compaction requires a configured base URL in Kimi.")
+
         url = f"{self._normalize_base_url(base_url)}/compact"
         req = request.Request(
             url,

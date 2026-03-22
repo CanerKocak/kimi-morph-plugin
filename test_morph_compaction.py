@@ -4,6 +4,7 @@ from types import SimpleNamespace
 from urllib import request
 
 import pytest
+from kosong.chat_provider import ChatProviderError
 from kosong.message import Message, TextPart
 from kimi_cli.constant import USER_AGENT
 
@@ -33,12 +34,16 @@ def test_post_compact_sends_user_agent_header(monkeypatch) -> None:
         captured["timeout"] = timeout
         return _FakeResponse()
 
-    monkeypatch.setenv("MORPH_API_KEY", "Bearer test-key")
-    monkeypatch.setenv("MORPH_API_URL", "https://api.morphllm.com/v1/compact")
     monkeypatch.setattr(request, "urlopen", fake_urlopen)
 
     compaction = MorphCompaction()
-    llm = SimpleNamespace(provider_config=None)
+    llm = SimpleNamespace(
+        provider_config=SimpleNamespace(
+            api_key="Bearer test-key",
+            base_url="https://api.morphllm.com/v1/compact",
+            custom_headers=None,
+        )
+    )
     response = compaction._post_compact({"model": "morph-compactor", "messages": []}, llm)
 
     assert response["output"] == "trimmed"
@@ -46,6 +51,16 @@ def test_post_compact_sends_user_agent_header(monkeypatch) -> None:
     assert captured["authorization"] == "Bearer test-key"
     assert captured["accept"] == "application/json"
     assert captured["full_url"] == "https://api.morphllm.com/v1/compact"
+
+
+def test_post_compact_requires_kimi_provider_credentials(monkeypatch) -> None:
+    monkeypatch.setattr(request, "urlopen", lambda req, timeout: _FakeResponse())
+
+    compaction = MorphCompaction()
+    llm = SimpleNamespace(provider_config=None)
+
+    with pytest.raises(ChatProviderError, match="configured API key in Kimi"):
+        compaction._post_compact({"model": "morph-compactor", "messages": []}, llm)
 
 
 @pytest.mark.asyncio
