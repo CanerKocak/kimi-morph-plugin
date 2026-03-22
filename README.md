@@ -8,19 +8,21 @@ https://github.com/user-attachments/assets/cd9ab927-74ff-46a9-bfab-69e3cde75d03
 
 ## Install
 
-If you already have a Morph-backed provider/model configured in Kimi, install and activate like before:
+This plugin only configures Morph-backed compaction. It assumes Kimi already has a normal chat model configured.
 
-```bash
-kimi plugin install git@github.com:CanerKocak/kimi-morph-plugin.git
-bash ~/.kimi/plugins/morph-plugin/activate.sh
-```
-
-If you want activation to bootstrap the Morph provider/model for you, install first and then run:
+For most users, install the plugin and let activation add the Morph compaction provider/model for you:
 
 ```bash
 export MORPH_API_KEY="YOUR_MORPH_API_KEY"
 kimi plugin install git@github.com:CanerKocak/kimi-morph-plugin.git
 bash ~/.kimi/plugins/morph-plugin/activate.sh --setup-morph
+```
+
+If you already manage a Morph-backed compaction model in `~/.kimi/config.toml`, plain activation still works:
+
+```bash
+kimi plugin install git@github.com:CanerKocak/kimi-morph-plugin.git
+bash ~/.kimi/plugins/morph-plugin/activate.sh
 ```
 
 You can also avoid putting the key directly on the command line:
@@ -69,6 +71,8 @@ Both `activate.sh` and `deactivate.sh` support `KIMI_CONFIG_PATH` for custom con
 
 If you only want to disable the plugin but keep your Morph provider/model entries, omit `--cleanup-morph`.
 
+`--cleanup-morph` now removes the bootstrap-created Morph provider only when no other remaining model still references it.
+
 ## Configuration
 
 `activate.sh` now supports two modes:
@@ -87,7 +91,7 @@ Bootstrap activation accepts:
 - `compaction_plugin = "morph-plugin"`
 - `compaction_model = "morph-compaction"` by default
 - `[models.morph-compaction]` by default
-- `[providers.morph]` by default
+- `[providers.morph]` only when no other remaining model still references it
 
 You can override the bootstrap aliases with `--model-alias` and `--provider-name` during cleanup if you used custom names.
 
@@ -101,6 +105,21 @@ The plugin does not choose the provider itself. Kimi passes the plugin either:
 - the normal active Kimi model/provider when no dedicated compaction model is set.
 
 So if you want compaction to hit Morph reliably, make sure compaction is routed to a Morph-backed provider/model in Kimi config before activating the plugin.
+
+## Verify
+
+```bash
+kimi plugin list
+rg -n 'compaction_(plugin|model)|\[providers\.morph\]|\[models\.morph-compaction\]' ~/.kimi/config.toml
+```
+
+You should see:
+
+- `morph-plugin` in `kimi plugin list`
+- `compaction_plugin = "morph-plugin"`
+- `compaction_model = "morph-compaction"`
+- `[providers.morph]`
+- `[models.morph-compaction]`
 
 ## How it works
 

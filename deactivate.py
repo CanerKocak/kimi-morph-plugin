@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import re
 from collections.abc import Callable
 from pathlib import Path
 
@@ -65,6 +66,17 @@ def _remove_table(text: str, table_name: str) -> tuple[str, bool]:
     return "\n".join(result).rstrip() + "\n", removed
 
 
+def _provider_is_still_referenced(text: str, provider_name: str) -> bool:
+    pattern = re.compile(r'^provider\s*=\s*"([^"]+)"\s*$')
+
+    for line in text.splitlines():
+        match = pattern.match(line.strip())
+        if match and match.group(1) == provider_name:
+            return True
+
+    return False
+
+
 def _deactivate_config(text: str, args: argparse.Namespace) -> tuple[str, list[str]]:
     removed: list[str] = []
 
@@ -91,9 +103,10 @@ def _deactivate_config(text: str, args: argparse.Namespace) -> tuple[str, list[s
     if removed_model_table:
         removed.append(f"[models.{args.model_alias}]")
 
-    updated, removed_provider_table = _remove_table(updated, f"providers.{args.provider_name}")
-    if removed_provider_table:
-        removed.append(f"[providers.{args.provider_name}]")
+    if not _provider_is_still_referenced(updated, args.provider_name):
+        updated, removed_provider_table = _remove_table(updated, f"providers.{args.provider_name}")
+        if removed_provider_table:
+            removed.append(f"[providers.{args.provider_name}]")
 
     return updated, removed
 

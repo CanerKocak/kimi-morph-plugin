@@ -98,3 +98,27 @@ def test_cleanup_morph_respects_custom_aliases() -> None:
     assert '[models.custom-compaction]' not in updated
     assert 'compaction_model = "custom-compaction"' not in updated
     assert removed[-2:] == ['[models.custom-compaction]', '[providers.custom-morph]']
+
+
+def test_cleanup_morph_keeps_provider_when_other_models_still_reference_it() -> None:
+    existing = _configure_morph_compaction(
+        (
+            '[models.morph-chat]\n'
+            'provider = "morph"\n'
+            'model = "kimi-k2.5"\n'
+            'max_context_size = 262144\n\n'
+            '[loop_control]\n'
+            'reserved_context_size = 50000\n'
+        ),
+        _bootstrap_args(),
+    )
+
+    updated, removed = _deactivate_config(existing, _cleanup_args(cleanup_morph=True))
+
+    assert 'compaction_plugin = "morph-plugin"' not in updated
+    assert 'compaction_model = "morph-compaction"' not in updated
+    assert '[models.morph-compaction]' not in updated
+    assert '[providers.morph]' in updated
+    assert '[models.morph-chat]' in updated
+    assert 'provider = "morph"' in updated
+    assert '[providers.morph]' not in removed
