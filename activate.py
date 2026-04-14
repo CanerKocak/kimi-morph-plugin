@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import tomllib
 from pathlib import Path
 
 PLUGIN_NAME = "morph-plugin"
@@ -11,7 +12,6 @@ DEFAULT_PROVIDER_NAME = "morph"
 DEFAULT_MODEL_ALIAS = "morph-compaction"
 DEFAULT_MODEL_NAME = "morph-compactor"
 DEFAULT_BASE_URL = "https://api.morphllm.com/v1"
-DEFAULT_MAX_CONTEXT_SIZE = 128000
 
 
 def _format_toml_value(value: str | int) -> str:
@@ -90,12 +90,52 @@ def _resolve_api_key(args: argparse.Namespace) -> str | None:
     return None
 
 
+def _infer_max_context_size(text: str) -> int:
+    if not text.strip():
+        raise SystemExit(
+            "Unable to auto-detect max_context_size from an empty Kimi config. "
+            "Pass --max-context-size explicitly."
+        )
+
+    try:
+        config = tomllib.loads(text)
+    except tomllib.TOMLDecodeError as exc:
+        raise SystemExit(f"Unable to parse existing Kimi config for auto sizing: {exc}") from exc
+
+    default_model = str(config.get("default_model", "")).strip()
+    models = config.get("models", {})
+    if isinstance(models, dict):
+        if default_model:
+            model = models.get(default_model)
+            if isinstance(model, dict):
+                size = model.get("max_context_size")
+                if isinstance(size, int):
+                    return size
+
+        sizes = [
+            model.get("max_context_size")
+            for model in models.values()
+            if isinstance(model, dict) and isinstance(model.get("max_context_size"), int)
+        ]
+        if sizes:
+            return max(sizes)
+
+    raise SystemExit(
+        "Unable to auto-detect max_context_size from the current Kimi config. "
+        "Pass --max-context-size explicitly."
+    )
+
+
 def _configure_morph_compaction(text: str, args: argparse.Namespace) -> str:
     api_key = _resolve_api_key(args)
     if not api_key:
         raise SystemExit(
             "Morph setup requires an API key via --api-key, --api-key-env, or MORPH_API_KEY."
         )
+
+    max_context_size = args.max_context_size
+    if max_context_size is None:
+        max_context_size = _infer_max_context_size(text)
 
     text = _upsert_table(
         text,
@@ -112,7 +152,7 @@ def _configure_morph_compaction(text: str, args: argparse.Namespace) -> str:
         {
             "provider": args.provider_name,
             "model": args.model_name,
-            "max_context_size": args.max_context_size,
+            "max_context_size": max_context_size,
         },
     )
     return _upsert_table(
@@ -157,8 +197,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--max-context-size",
         type=int,
-        default=DEFAULT_MAX_CONTEXT_SIZE,
-        help=f"Configured max context size for the compaction model. Default: {DEFAULT_MAX_CONTEXT_SIZE}",
+        default=None,
+        help="Configured max context size for the compaction model. Defaults to the current active model window from ~/.kimi/config.toml.",
     )
     return parser
 

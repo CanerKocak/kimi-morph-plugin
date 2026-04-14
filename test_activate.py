@@ -14,7 +14,8 @@ from activate import (
 )
 
 
-def test_configure_morph_compaction_adds_provider_model_and_loop_control() -> None:
+def test_configure_morph_compaction_uses_active_model_window_when_omitted() -> None:
+    existing = """default_model = \"kimi-code/kimi-for-coding\"\n\n[models.\"kimi-code/kimi-for-coding\"]\nprovider = \"managed:kimi-code\"\nmodel = \"kimi-for-coding\"\nmax_context_size = 262144\n"""
     args = SimpleNamespace(
         api_key="test-key",
         api_key_env=None,
@@ -22,10 +23,10 @@ def test_configure_morph_compaction_adds_provider_model_and_loop_control() -> No
         model_alias=DEFAULT_MODEL_ALIAS,
         model_name=DEFAULT_MODEL_NAME,
         base_url=DEFAULT_BASE_URL,
-        max_context_size=128000,
+        max_context_size=None,
     )
 
-    updated = _configure_morph_compaction("", args)
+    updated = _configure_morph_compaction(existing, args)
 
     assert '[providers.morph]' in updated
     assert 'type = "openai_legacy"' in updated
@@ -34,7 +35,7 @@ def test_configure_morph_compaction_adds_provider_model_and_loop_control() -> No
     assert '[models.morph-compaction]' in updated
     assert 'provider = "morph"' in updated
     assert 'model = "morph-compactor"' in updated
-    assert 'max_context_size = 128000' in updated
+    assert 'max_context_size = 262144' in updated
     assert '[loop_control]' in updated
     assert 'compaction_model = "morph-compaction"' in updated
     assert 'compaction_plugin = "morph-plugin"' in updated
@@ -49,7 +50,7 @@ def test_configure_morph_compaction_updates_existing_sections_without_duplicates
         model_alias=DEFAULT_MODEL_ALIAS,
         model_name=DEFAULT_MODEL_NAME,
         base_url=DEFAULT_BASE_URL,
-        max_context_size=128000,
+        max_context_size=300000,
     )
 
     updated = _configure_morph_compaction(existing, args)
@@ -93,7 +94,7 @@ def test_configure_morph_compaction_requires_api_key(monkeypatch) -> None:
         model_alias=DEFAULT_MODEL_ALIAS,
         model_name=DEFAULT_MODEL_NAME,
         base_url=DEFAULT_BASE_URL,
-        max_context_size=128000,
+        max_context_size=None,
     )
 
     with pytest.raises(SystemExit, match="requires an API key"):
