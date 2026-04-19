@@ -20,7 +20,7 @@ def _bootstrap_args() -> SimpleNamespace:
         model_alias=DEFAULT_MODEL_ALIAS,
         model_name=DEFAULT_MODEL_NAME,
         base_url=DEFAULT_BASE_URL,
-        max_context_size=128000,
+        max_context_size=300000,
     )
 
 

@@ -38,11 +38,12 @@ api_key = "YOUR_MORPH_API_KEY"
 [models.morph-compaction]
 provider = "morph"
 model = "morph-compactor"
-max_context_size = 128000
 
 [loop_control]
 compaction_model = "morph-compaction"
 ```
+
+The activation script derives `max_context_size` from your current `default_model` entry and writes that value for you.
 
 ## Uninstall
 
